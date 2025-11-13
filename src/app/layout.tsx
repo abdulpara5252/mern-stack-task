@@ -28,9 +28,11 @@ export default async function RootLayout({
           <Analytics />
         </Suspense> */}
         <SessionProvider session={session}>
-          <main className="container mx-auto flex flex-col gap-4">
+          <main className="min-h-screen bg-gray-50">
             <NavMenu />
-            {children}
+            <main className="container mx-auto px-4 py-6">
+              {children}
+            </main>
           </main>
         </SessionProvider>
 

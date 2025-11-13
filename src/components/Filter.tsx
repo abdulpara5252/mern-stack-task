@@ -1,15 +1,13 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-// import Select from "react-select";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
 import { MultiSelect } from "react-multi-select-component";
 import "rc-slider/assets/index.css";
 import { occasionOptions } from "../../constant";
 import { useMemo } from "react";
 import dynamic from "next/dynamic";
-import { useQueryParams } from "@/hooks/useQueryParams";
 const Select = dynamic(() => import("react-select"), { ssr: false });
 
 const discountOptions = [
@@ -20,8 +18,9 @@ const discountOptions = [
 ];
 
 function Filter({ categories, brands }) {
-  const searchParams = useQueryParams();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const brandsOption: any[] = useMemo(() => {
     return brands.map((brand: any) => ({
@@ -46,140 +45,203 @@ function Filter({ categories, brands }) {
     });
   }, []);
 
+  // Url Helper Function
+  const updateUrl = useCallback((updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value && value !== '') {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    });
+    
+    params.set('page', '1'); // Reset to first page when filtering
+    router.push(`${pathname}?${params.toString()}`);
+  }, [searchParams, router, pathname]);
+
   const [categoriesSelected, setCategoriesSelected] = useState(() => {
-    if (searchParams.get("categoryId")) {
-      return searchParams
-        .get("categoryId")
-        ?.split(",")
+    const categoryIds = searchParams.get("categoryId");
+    if (categoryIds) {
+      return categoryIds
+        .split(",")
         .map((categoryId) => {
-          return {
+          const category = categoriesOption.find(
+            (option) => option.value === +categoryId
+          );
+          return category ? {
             value: +categoryId,
-            label: categoriesOption.find(
-              (option) => option.value === +categoryId
-            ).label,
-          };
-        });
-    } else {
-      return [];
+            label: category.label,
+          } : null;
+        })
+        .filter(Boolean);
     }
+    return [];
   });
+  
   const [selectedGender, setSelectedGender] = useState(
     () => searchParams.get("gender") || ""
   );
-  const [sliderValue, setSliderValue] = useState(
-    () => searchParams.get("priceRangeTo") || 2000
+  
+  const [minPrice, setMinPrice] = useState(
+    () => searchParams.get("minPrice") || "100"
+  );
+  
+  const [maxPrice, setMaxPrice] = useState(
+    () => searchParams.get("maxPrice") || "2000"
   );
 
-  const [sliderChanged, setSliderChanged] = useState(false);
+  const [priceChanged, setPriceChanged] = useState(false);
 
   const initialDiscountOptions = useMemo(() => {
-    if (searchParams.get("discount")) {
-      const value = searchParams.get("discount");
-      if (!value) return discountOptions[0];
-      const [from, to] = value?.split("-");
-      return { value, label: `From ${from}% to ${to}%` };
-    } else {
-      return discountOptions[0];
+    const minDiscount = searchParams.get("minDiscount");
+    const maxDiscount = searchParams.get("maxDiscount");
+    if (minDiscount && maxDiscount) {
+      const value = `${minDiscount}-${maxDiscount}`;
+      return { value, label: `From ${minDiscount}% to ${maxDiscount}%` };
     }
-  }, []);
+    return discountOptions[0];
+  }, [searchParams]);
 
-  const initialBrandOptions = useMemo(() => {
-    if (searchParams.get("brandId")) {
-      return searchParams
-        .get("brandId")
-        ?.split(",")
+  const [selectedBrands, setSelectedBrands] = useState(() => {
+    const brandIds = searchParams.get("brandId");
+    if (brandIds) {
+      return brandIds
+        .split(",")
         .map((brandId) => {
-          return {
+          const brand = brandsOption.find((option) => option.value === +brandId);
+          return brand ? {
             value: +brandId,
-            label: brandsOption.find((option) => option.value === +brandId)
-              .label,
-          };
-        });
-    } else {
-      return [];
+            label: brand.label,
+          } : null;
+        })
+        .filter(Boolean);
     }
-  }, [brandsOption]);
+    return [];
+  });
 
   const initialOccasionOptions = useMemo(() => {
-    if (searchParams.get("occasions")) {
-      return searchParams
-        .get("occasions")
-        ?.split(",")
+    const occasions = searchParams.get("occasion");
+    if (occasions) {
+      return occasions
+        .split(",")
         .map((item) => ({ value: item, label: item }));
-    } else {
-      return [];
     }
-  }, []);
+    return [];
+  }, [searchParams]);
 
   useEffect(() => {
-    if (sliderChanged) {
+    if (priceChanged) {
       const handler = setTimeout(() => {
-        // setSliderValue(tempSliderValue);
-        searchParams.delete("page");
-        searchParams.delete("pageSize");
-        searchParams.set("priceRangeTo", `${sliderValue}`);
-        router.push(`/products?${searchParams.toString()}`, { scroll: false });
-      }, 300);
+        updateUrl({
+          minPrice: minPrice,
+          maxPrice: maxPrice
+        });
+        setPriceChanged(false);
+      }, 500);
 
       return () => clearTimeout(handler);
     }
-  }, [sliderValue]);
+  }, [minPrice, maxPrice, priceChanged, updateUrl]);
 
-  function handleBrandsSelect(e) {
-    alert("Please update the code.");
-  }
+  const handleBrandsSelect = useCallback((selectedOptions: any) => {
+    setSelectedBrands(selectedOptions || []);
+    const brandIds = selectedOptions?.map((option: any) => option.value).join(',') || '';
+    updateUrl({ brandId: brandIds || null });
+  }, [updateUrl]);
 
-  function handleCategoriesSelected(e) {
-    alert("Please update the code.");
-  }
+  const handleCategoriesSelected = useCallback((selectedOptions: any) => {
+    setCategoriesSelected(selectedOptions);
+    const categoryIds = selectedOptions?.map((option: any) => option.value).join(',') || '';
+    updateUrl({ categoryId: categoryIds || null });
+  }, [updateUrl]);
 
-  function handleSlider(e) {
-    alert("Please update the code.");
-  }
+  const handleMinPriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setMinPrice(e.target.value);
+    setPriceChanged(true);
+  }, []);
 
-  const handleGenderChange = (e) => {
-    alert("Please update the code.");
-  };
+  const handleMaxPriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setMaxPrice(e.target.value);
+    setPriceChanged(true);
+  }, []);
 
-  function handleOccasions(e) {
-    alert("Please update the code.");
-  }
+  const handleGenderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const gender = e.target.value;
+    setSelectedGender(gender);
+    updateUrl({ gender: gender || null });
+  }, [updateUrl]);
 
-  function handleDiscount(e) {
-    alert("Please update the code.");
-  }
+  const handleOccasions = useCallback((selectedOptions: any) => {
+    const occasions = selectedOptions?.map((option: any) => option.value).join(',') || '';
+    updateUrl({ occasion: occasions || null });
+  }, [updateUrl]);
 
-  // function handleClearAll() {
-  //   searchParams.delete("categoryId");
-  //   searchParams.delete("brandId");
-  //   searchParams.delete("priceRangeTo");
-  //   searchParams.delete("gender");
-  //   searchParams.delete("occasions");
-  //   searchParams.delete("discount");
-  //   router.push(`/products?${searchParams.toString()}`);
-  // }
+  const handleDiscount = useCallback((selectedOption: any) => {
+    if (selectedOption?.value && selectedOption.value !== '') {
+      const [min, max] = selectedOption.value.split('-');
+      updateUrl({ 
+        minDiscount: min,
+        maxDiscount: max
+      });
+    } else {
+      updateUrl({ 
+        minDiscount: null,
+        maxDiscount: null
+      });
+    }
+  }, [updateUrl]);
+
+  const handleClearAll = useCallback(() => {
+    setCategoriesSelected([]);
+    setSelectedBrands([]);
+    setSelectedGender('');
+    setMinPrice('100');
+    setMaxPrice('2000');
+    updateUrl({
+      categoryId: null,
+      brandId: null,
+      minPrice: null,
+      maxPrice: null,
+      gender: null,
+      occasion: null,
+      minDiscount: null,
+      maxDiscount: null
+    });
+  }, [updateUrl]);
 
   return (
-    <div className="w-full">
-      {/* <button className="bg-white p-2 my-4 text-black" onClick={handleClearAll}>
-        Clear All
-      </button> */}
-      {/* <p className="text-lg">Filter By</p> */}
-      <div className="w-1/4 flex  items-center gap-4 mb-4">
-        <span>Brands</span>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6 sticky top-20">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-gray-900">Filters</h2>
+        <button 
+          onClick={handleClearAll}
+          className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+        >
+          Clear All
+        </button>
+      </div>
+
+      {/* Brands Filter */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">Brands</label>
         <Select
-          className="flex-1 text-black"
+          className="text-black"
           options={brandsOption}
           isMulti
           name="brands"
           onChange={handleBrandsSelect}
-          defaultValue={initialBrandOptions}
+          value={selectedBrands}
+          placeholder="Select brands..."
         />
       </div>
-      <div className="w-1/3 flex items-center gap-4 mb-4">
-        <span>Categories</span>
+
+      {/* Categories Filter */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">Categories</label>
         <MultiSelect
-          className="text-black flex-1"
+          className="text-black"
           options={categoriesOption}
           value={categoriesSelected as []}
           labelledBy="categories select"
@@ -187,90 +249,91 @@ function Filter({ categories, brands }) {
           onChange={handleCategoriesSelected}
         />
       </div>
-      <div>
-        <span>Select products from Range 1 to 2000</span>
-        <br />
-        <span>Current Value {sliderValue}</span> <br />
-        <input
-          type="range"
-          step="50"
-          min="100"
-          max="2000"
-          value={sliderValue}
-          onChange={handleSlider}
-        />
+
+      {/* Price Range Filter */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-700">Price Range</label>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Min Price</label>
+            <input
+              type="number"
+              min="0"
+              max="10000"
+              value={minPrice}
+              onChange={handleMinPriceChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Min"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Max Price</label>
+            <input
+              type="number"
+              min="0"
+              max="10000"
+              value={maxPrice}
+              onChange={handleMaxPriceChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Max"
+            />
+          </div>
+        </div>
+        <div className="text-sm text-gray-600">
+          Range: ${minPrice} - ${maxPrice}
+        </div>
       </div>
-      <div>
-        Select Gender: <br />
-        <input
-          type="radio"
-          id="none"
-          name="gender"
-          value=""
-          checked={selectedGender === ""}
-          onChange={handleGenderChange}
-        />
-        <label htmlFor="none">None</label> <br />
-        <input
-          type="radio"
-          id="men"
-          name="gender"
-          value="men"
-          checked={selectedGender === "men"}
-          onChange={handleGenderChange}
-        />
-        <label htmlFor="men">Men</label>
-        <br />
-        <input
-          type="radio"
-          id="women"
-          name="gender"
-          value="women"
-          checked={selectedGender === "women"}
-          onChange={handleGenderChange}
-        />
-        <label htmlFor="women">Women</label>
-        <br />
-        <input
-          type="radio"
-          id="boy"
-          name="gender"
-          value="boy"
-          checked={selectedGender === "boy"}
-          onChange={handleGenderChange}
-        />
-        <label htmlFor="boy">Boy</label>
-        <br />
-        <input
-          type="radio"
-          id="girl"
-          name="gender"
-          value="girl"
-          checked={selectedGender === "girl"}
-          onChange={handleGenderChange}
-        />
-        <label htmlFor="girl">Girl</label>
+
+      {/* Gender Filter */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-700">Gender</label>
+        <div className="space-y-2">
+          {[
+            { value: '', label: 'All' },
+            { value: 'men', label: 'Men' },
+            { value: 'women', label: 'Women' },
+            { value: 'boy', label: 'Boy' },
+            { value: 'girl', label: 'Girl' }
+          ].map((option) => (
+            <label key={option.value} className="flex items-center">
+              <input
+                type="radio"
+                name="gender"
+                value={option.value}
+                checked={selectedGender === option.value}
+                onChange={handleGenderChange}
+                className="mr-2 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-700">{option.label}</span>
+            </label>
+          ))}
+        </div>
       </div>
-      <div className="w-1/4 flex  items-center gap-4 mb-4">
-        <span>Occasion</span>
+
+      {/* Occasion Filter */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">Occasion</label>
         <Select
-          className="flex-1 text-black"
+          className="text-black"
           options={occasionOption}
           isMulti
           name="occasion"
           onChange={handleOccasions}
-          defaultValue={initialOccasionOptions}
+          value={initialOccasionOptions}
+          placeholder="Select occasions..."
         />
       </div>
 
-      <div className="w-1/4 flex  items-center gap-4 mb-4">
-        <span>Filter By discount</span>
+      {/* Discount Filter */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">Discount Range</label>
         <Select
-          className="flex-1 text-black"
+          className="text-black"
           options={discountOptions}
           name="discount"
-          defaultValue={initialDiscountOptions}
+          value={initialDiscountOptions}
           onChange={handleDiscount}
+          placeholder="Select discount range..."
         />
       </div>
     </div>

@@ -1,59 +1,42 @@
-import {
-  MapBrandIdsToName,
-  getAllProductCategories,
-} from "@/actions/productActions";
-import ProductRow from "./ProductRow";
+import ProductCard from "./ProductCard";
 import Empty from "./Empty";
 
-async function ProductTable({ products, numOfResultsOnCurPage }) {
+interface Product {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  old_price: number;
+  discount: number;
+  image_url: string | null;
+  gender: string;
+  occasion: string;
+  colors: string;
+  brands: string;
+  rating: number;
+  categories?: Array<{ id: number; name: string }>;
+}
+
+interface ProductTableProps {
+  products: Product[];
+  numOfResultsOnCurPage: number;
+}
+
+async function ProductTable({ products, numOfResultsOnCurPage }: ProductTableProps) {
   if (products.length === 0) {
     return <Empty />;
   }
 
-  const brandsArr = new Set();
-  for (let i = 0; i < products.length; i++) {
-    const productBrands = JSON.parse(products.at(i)?.brands as string);
-    productBrands?.forEach((productBrand) => {
-      brandsArr.add(productBrand);
-    });
-  }
-
-  const brandsId = [...brandsArr];
-  const brandsMap = await MapBrandIdsToName(brandsId);
-  const productCategories = await getAllProductCategories(products);
-
   return (
-    <table>
-      <thead>
-        <tr>
-          <th>Product Id</th>
-          <th>Image</th>
-          <th>Name</th>
-          <th>Description</th>
-          <th>Price</th>
-          <th>Colors</th>
-          <th>Rating</th>
-          <th>Gender</th>
-          <th>Categories</th>
-          <th>Brands</th>
-          <th>Occasion</th>
-          <th>Operations</th>
-        </tr>
-      </thead>
-      <tbody>
-        {products.map((product) => {
-          return (
-            <ProductRow
-              key={product.id}
-              product={product}
-              productCategories={productCategories.get(product.id)}
-              brandsMap={brandsMap}
-              numOfResultsOnCurPage={numOfResultsOnCurPage}
-            />
-          );
-        })}
-      </tbody>
-    </table>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {products.map((product) => (
+        <ProductCard
+          key={product.id}
+          product={product}
+          numOfResultsOnCurPage={numOfResultsOnCurPage}
+        />
+      ))}
+    </div>
   );
 }
 

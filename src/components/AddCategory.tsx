@@ -42,47 +42,80 @@ function AddCategory({ categories }) {
   }
 
   return (
-    <div className="mb-6">
+    <div>
       <button
-        className="p-4 bg-white text-black mt-4 mb-4 text-sm"
+        className="btn-primary flex items-center gap-2"
         onClick={() => setIsOpen((prev) => !prev)}
       >
+        <span>📂</span>
         Add Category
       </button>
 
       {isOpen && (
-        <div>
-          <form onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-2 mb-4">
-              <label htmlFor="category">Category Name:</label>
-              <input
-                type="text"
-                name="category"
-                id="category"
-                className="w-1/3"
-                value={categoryName}
-                onChange={(e) => setCategoryName(e.target.value)}
-                placeholder="Enter Category Name"
-                required
-              />
-            </div>
-            <div>
-              <span>Select Parent Category</span>
-              <Select
-                isSearchable
-                className="text-black w-1/3"
-                options={categoriesOption}
-                // defaultValue={categoriesOption[0]}
-                name="categories"
-                onChange={handleCategories}
-                value={selectedCategory}
-              />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Add New Category</h2>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ×
+              </button>
             </div>
 
-            <button type="submit" className="bg-gray-200 text-black p-2 mt-4">
-              Add
-            </button>
-          </form>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+                  Category Name *
+                </label>
+                <input
+                  type="text"
+                  name="category"
+                  id="category"
+                  className="input-field"
+                  value={categoryName}
+                  onChange={(e) => setCategoryName(e.target.value)}
+                  placeholder="Enter Category Name"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Parent Category
+                </label>
+                <Select
+                  isSearchable
+                  className="text-black"
+                  options={categoriesOption}
+                  name="categories"
+                  onChange={handleCategories}
+                  value={selectedCategory}
+                  placeholder="Select parent category (optional)"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave empty to create a main category
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  type="submit" 
+                  className="btn-primary flex-1"
+                >
+                  Add Category
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setIsOpen(false)}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
